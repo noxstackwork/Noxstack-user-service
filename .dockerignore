@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Development files
+*.log
+*.out
+*.test
+*.prof
+
+# Build files
+bin/
+tmp/
+
+# IDE files
+.idea/
+.vscode/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Documentation
+README.md
+docs/*.md
+
+# Dependencies
+vendor/
+
+# Test files
+*_test.go
+

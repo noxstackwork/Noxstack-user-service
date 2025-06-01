@@ -1,0 +1,1162 @@
+openapi: 3.0.3
+info:
+  title: Consolidated User Service API
+  version: 1.0.0
+  description: |
+    API for user authentication, profile management, and session handling.
+    
+    # User Types and Flows
+    
+    ## Regular User Flow
+    1. Sign up with email/phone
+    2. Verify email/phone
+    3. Create basic profile
+    4. Login and access user features
+    
+    ## Creator Flow
+    1. Sign up with email/phone
+    2. Verify email/phone
+    3. Create creator profile with services
+    4. Set location and availability
+    5. Login and access creator features
+    
+    # API Categories
+    
+    ## Authentication
+    - Email/phone signup and verification
+    - Profile creation
+    - Login (email/password, phone/OTP)
+      - Password reset
+      - Google OAuth2
+    
+    ## User Features
+    - View and update profile
+    - Manage preferences
+    - View creator profiles
+    - Book services
+    
+    ## Creator Features
+    - Manage services offered
+    - Set location and availability
+    - View bookings
+    - Manage profile visibility
+    
+    ## Admin Features
+    - User management
+    - Content moderation
+    - Analytics and reporting
+
+servers:
+  - url: http://localhost:8080/api/v1
+
+tags:
+  - name: Authentication
+    description: Authentication and account operations
+  - name: Users
+    description: User profile and preferences management
+  - name: Admin
+    description: Administrative operations
+
+paths:
+  /auth/signup/email:
+    post:
+      tags:
+        - Authentication
+      summary: Start email signup (send verification code)
+      operationId: startEmailSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+      responses:
+        '200':
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify-email:
+    post:
+      tags:
+        - Authentication
+      summary: Verify email with code
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+              required: [email, code]
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/create-profile/email:
+    post:
+      tags:
+        - Authentication
+      summary: Create user profile after email verification
+      operationId: createProfileEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/RegularUserProfileCreate'
+                - $ref: '#/components/schemas/CreatorProfileCreate'
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/signup/phone:
+    post:
+      tags:
+        - Authentication
+      summary: Start phone signup (send OTP)
+      operationId: startPhoneSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format (e.g., +1234567890)
+              required: [phone]
+      responses:
+        '200':
+          description: OTP sent to phone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Verify phone OTP
+      operationId: verifyOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format
+                otp:
+                  type: string
+                  description: One-time password sent to the phone
+              required: [phone, otp]
+      responses:
+        '200':
+          description: Phone verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/create-profile/phone:
+    post:
+      tags:
+        - Authentication
+      summary: Create user profile after phone verification
+      operationId: createProfilePhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+              required: [phone, password, full_name]
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/signin/email:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in with email and password
+      operationId: signinEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+              required: [email, password]
+      responses:
+        '200':
+          description: JWT token returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/signin/phone:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in with phone (send OTP)
+      operationId: signinPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format
+              required: [phone]
+      responses:
+        '200':
+          description: OTP sent to phone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Start password reset (send code)
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+      responses:
+        '200':
+          description: Reset code sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/verify-reset-code:
+    post:
+      tags:
+        - Authentication
+      summary: Verify password reset code
+      operationId: verifyResetCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+              required: [email, code]
+      responses:
+        '200':
+          description: Reset code verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 8
+              required: [email, code, new_password]
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/google:
+    post:
+      tags:
+        - Authentication
+      summary: Start Google OAuth2 login
+      operationId: googleOauth
+      responses:
+        '200':
+          description: Google OAuth2 not implemented (stub)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/callback:
+    get:
+      tags:
+        - Authentication
+      summary: Google OAuth2 callback
+      operationId: oauthCallback
+      responses:
+        '200':
+          description: JWT token returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      description: |
+        Returns the profile of the currently authenticated user.
+        - Regular users see their basic profile
+        - Creators see additional fields like services and availability
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UserProfile'
+                  - $ref: '#/components/schemas/CreatorProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Users
+      summary: Update current user's profile
+      operationId: updateCurrentUserProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/UserProfileUpdate'
+                - $ref: '#/components/schemas/CreatorProfileUpdate'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: User is not authorized to update this profile type
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - Users
+      summary: Delete current user's account
+      operationId: deleteCurrentUserAccount
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Account deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /users/me/location:
+    put:
+      tags:
+        - Users
+      summary: Update current user's location
+      operationId: updateUserLocation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Location'
+      responses:
+        '200':
+          description: Location updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /users/me/preferences:
+    get:
+      tags:
+        - Users
+      summary: Get current user's preferences
+      operationId: getUserPreferences
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags:
+        - Users
+      summary: Update current user's preferences
+      operationId: updateUserPreferences
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /users/me/password:
+    put:
+      tags:
+        - Users
+      summary: Change current user's password
+      operationId: changePassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password:
+                  type: string
+                  minLength: 8
+                new_password:
+                  type: string
+                  minLength: 8
+              required:
+                - old_password
+                - new_password
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /users/me/services:
+    get:
+      tags:
+        - Users
+      summary: Get services offered by current user
+      operationId: getUserServices
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags:
+        - Users
+      summary: Update creator services
+      description: |
+        Update the services offered by a creator.
+        Only available for users with creator role.
+      operationId: updateCreatorServices
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                services:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Service'
+      responses:
+        '200':
+          description: Services updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: User is not a creator
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List all users (admin only)
+      operationId: listUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of users per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [created_at, updated_at, full_name]
+            default: created_at
+          description: Field to sort by
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort order
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserProfile'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  pages:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+          
+  /admin/users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get user by ID (admin only)
+      operationId: getUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: User ID
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags:
+        - Admin
+      summary: Update user by ID (admin only)
+      operationId: updateUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags:
+        - Admin
+      summary: Delete user by ID (admin only)
+      operationId: deleteUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: User ID
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  responses:
+    BadRequest:
+      description: Bad Request - The server cannot process the request due to a client error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    Unauthorized:
+      description: Unauthorized - Authentication is required and has failed or has not been provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    Forbidden:
+      description: Forbidden - The server understood the request but refuses to authorize it
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFound:
+      description: Not Found - The requested resource could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    ServerError:
+      description: Internal Server Error - The server has encountered a situation it does not know how to handle
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A human-readable message indicating the result of the operation
+      required:
+        - message
+    
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration time
+      required:
+        - token
+    
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details if available
+      required:
+        - error
+        - message
+    
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the user
+        email:
+          type: string
+          format: email
+          description: User's email address
+        phone:
+          type: string
+          description: User's phone number in E.164 format
+        full_name:
+          type: string
+          description: User's full name
+        bio:
+          type: string
+          description: User's biography
+        avatar_url:
+          type: string
+          format: uri
+          description: URL to user's avatar image
+        role:
+          type: string
+          enum: [user]
+          description: User's role
+        willing_to_provide_services:
+          type: boolean
+          description: Whether the user is willing to provide services
+        level:
+          type: integer
+          description: User's level
+        services_offered:
+          type: array
+          items:
+            type: string
+          description: Services offered by the user
+        location:
+          $ref: '#/components/schemas/Location'
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Account last update timestamp
+        preferences:
+          type: object
+      required:
+        - id
+        - full_name
+        - role
+        - created_at
+        - updated_at
+    
+    UserProfileUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+        bio:
+          type: string
+        avatar_url:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+    
+    Location:
+      type: object
+      properties:
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        coordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+      required:
+        - address
+        - city
+        - state
+        - country
+    
+    UserPreferences:
+      type: object
+      properties:
+        notification_email:
+          type: boolean
+          description: Receive notifications via email
+        notification_sms:
+          type: boolean
+          description: Receive notifications via SMS
+        notification_push:
+          type: boolean
+          description: Receive push notifications
+        language:
+          type: string
+          description: Preferred language
+        theme:
+          type: string
+          enum: [light, dark, system]
+          description: Preferred UI theme
+      required:
+        - notification_email
+        - notification_sms
+        - notification_push
+
+    CreatorProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserProfile'
+        - type: object
+          properties:
+            role:
+              type: string
+              enum: [creator]
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/Service'
+            location:
+              $ref: '#/components/schemas/Location'
+            availability:
+              $ref: '#/components/schemas/Availability'
+            rating:
+              type: number
+              minimum: 0
+              maximum: 5
+            total_bookings:
+              type: integer
+              minimum: 0
+            is_verified:
+              type: boolean
+          required:
+            - services
+            - location
+            - availability
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        duration:
+          type: integer
+          description: Duration in minutes
+        category:
+          type: string
+
+    Availability:
+      type: object
+      properties:
+        schedule:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+                enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+              slots:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    start:
+                      type: string
+                      format: time
+                    end:
+                      type: string
+                      format: time
+
+    RegularUserProfileCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [user]
+          default: user
+      required:
+        - email
+        - password
+        - full_name
+
+    CreatorProfileCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [creator]
+          default: creator
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        location:
+          $ref: '#/components/schemas/Location'
+        availability:
+          $ref: '#/components/schemas/Availability'
+      required:
+        - email
+        - password
+        - full_name
+        - services
+        - location
+        - availability
+
+    CreatorProfileUpdate:
+      allOf:
+        - $ref: '#/components/schemas/UserProfileUpdate'
+        - type: object
+          properties:
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/Service'
+            location:
+              $ref: '#/components/schemas/Location'
+            availability:
+              $ref: '#/components/schemas/Availability'
