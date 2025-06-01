@@ -990,12 +990,12 @@ components:
         country:
           type: string
         coordinates:
-      type: object
-      properties:
-        latitude:
-          type: number
-        longitude:
-          type: number
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
       required:
         - address
         - city

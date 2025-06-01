@@ -22,9 +22,9 @@ docker-compose.yml
 .dockerignore
 
 # Environment files
-.env
-.env.*
-!.env.example
+# .env
+# .env.*
+# !.env.example
 
 # Documentation
 README.md
